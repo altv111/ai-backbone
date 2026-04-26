@@ -1,13 +1,13 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from app.contracts.common import ResponseMetadata
 
 
 class DocumentInput(BaseModel):
     id: str
-    content: str
+    content: str = Field(validation_alias=AliasChoices("content", "text"))
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

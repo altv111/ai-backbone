@@ -3,6 +3,7 @@
 Layer 1 is a stateless, provider-agnostic AI backbone. It exposes primitives and avoids business workflows.
 
 Layer 2 (future) composes Layer 1 into product tools like Jira generators, NL->JQL, Confluence assistants, and code assistants.
+Layer 1 remains generic: Jira/Confluence ingestion and product-specific workflows belong to Layer 2.
 
 ## Provider Types
 
@@ -143,6 +144,113 @@ curl -s -X POST http://127.0.0.1:8000/v1/llm/chat \
     "max_tokens":512
   }'
 ```
+
+## FAISS Retrieval (`faiss-http`)
+
+`faiss-http` is a RetrievalProvider that forwards backbone RAG requests to a separate FAISS worker service over HTTP.
+
+Enable in backbone:
+- `FAISS_HTTP_ENABLED=true`
+- `FAISS_WORKER_URL=http://localhost:8890`
+- `FAISS_HTTP_TIMEOUT_SECONDS=120`
+
+Backbone does not import `faiss` or `sentence-transformers`; the worker owns:
+- embedding model loading
+- FAISS index read/write
+- document sidecar storage
+- retrieval logic
+
+### Example cURL (through backbone)
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/rag/index \
+  -H 'content-type: application/json' \
+  -d '{
+    "provider":"faiss-http",
+    "collection":"sample-docs",
+    "documents":[
+      {
+        "id":"doc-1",
+        "content":"Value at Risk measures potential loss.",
+        "metadata":{"source":"manual","category":"risk"}
+      }
+    ],
+    "options":{}
+  }'
+```
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/v1/rag/retrieve \
+  -H 'content-type: application/json' \
+  -d '{
+    "provider":"faiss-http",
+    "collection":"sample-docs",
+    "query":"What is VaR?",
+    "top_k":5,
+    "filters":{},
+    "options":{}
+  }'
+```
+
+## FAISS Worker Service (Separate Deployment)
+
+Location:
+- `worker_services/faiss_worker/`
+
+This service exposes:
+- `GET /health`
+- `POST /index`
+- `POST /retrieve`
+- `GET /collections`
+
+### Run mock mode
+
+```bash
+cd ai_backbone
+export FAISS_WORKER_MOCK_MODE=true
+python -m worker_services.faiss_worker.app
+```
+
+### Run real mode
+
+```bash
+cd ai_backbone
+export FAISS_WORKER_MOCK_MODE=false
+export FAISS_WORKER_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+export FAISS_WORKER_INDEX_ROOT=./data/faiss_indexes
+python -m worker_services.faiss_worker.app
+```
+
+### Direct worker cURL
+
+```bash
+curl -s -X POST http://127.0.0.1:8890/index \
+  -H 'content-type: application/json' \
+  -d '{
+    "collection":"sample-docs",
+    "documents":[{"id":"doc-1","text":"Value at Risk measures potential loss.","metadata":{"source":"manual","category":"risk"}}],
+    "mode":"append"
+  }'
+```
+
+```bash
+curl -s -X POST http://127.0.0.1:8890/retrieve \
+  -H 'content-type: application/json' \
+  -d '{
+    "collection":"sample-docs",
+    "query":"What is VaR?",
+    "top_k":5,
+    "filters":{}
+  }'
+```
+
+### Collection Directory Layout
+
+Per collection under `FAISS_WORKER_INDEX_ROOT`:
+
+- `index.faiss`
+- `documents.json`
+- `manifest.json`
 
 ## Gemma Worker Service (Separate Deployment)
 

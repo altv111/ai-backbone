@@ -78,6 +78,20 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GEMMA_DEFAULT_TEMPERATURE", "AI_BACKBONE_GEMMA_DEFAULT_TEMPERATURE"),
     )
 
+    faiss_http_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FAISS_HTTP_ENABLED", "AI_BACKBONE_FAISS_HTTP_ENABLED"),
+    )
+    faiss_worker_url: str = Field(
+        default="http://localhost:8890",
+        validation_alias=AliasChoices("FAISS_WORKER_URL", "AI_BACKBONE_FAISS_WORKER_URL"),
+    )
+    faiss_http_timeout_seconds: float = Field(
+        default=120,
+        ge=1,
+        validation_alias=AliasChoices("FAISS_HTTP_TIMEOUT_SECONDS", "AI_BACKBONE_FAISS_HTTP_TIMEOUT_SECONDS"),
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="AI_BACKBONE_",

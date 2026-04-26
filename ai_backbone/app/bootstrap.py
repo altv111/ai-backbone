@@ -15,6 +15,7 @@ from app.knowledge.mock_knowledge import MockKnowledgeProvider
 from app.providers.central_llm import CentralLLMProvider
 from app.providers.gemma import LocalGemmaProvider
 from app.providers.mock_llm import MockLLMProvider
+from app.retrieval.faiss_http import FaissHTTPRetrievalProvider
 from app.retrieval.mock_retrieval import MockRetrievalProvider
 from app.services.knowledge_service import KnowledgeService
 from app.services.llm_service import LLMService
@@ -65,6 +66,9 @@ def build_container(settings: Settings) -> AppContainer:
 
     if settings.gemma_enabled:
         _safe_register_llm(llm_registry, LocalGemmaProvider(settings=settings))
+
+    if settings.faiss_http_enabled:
+        retrieval_registry.register(FaissHTTPRetrievalProvider(settings=settings))
 
     return AppContainer(
         settings=settings,
